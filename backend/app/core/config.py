@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # App
     app_name: str = "Admin Event Booking Platform"
     frontend_url: str = "http://localhost:5174"
-    backend_url: str = "http://localhost:8000"
+    backend_url: str = "http://localhost:8001"
 
     # Reservation timeout (minutes)
     reservation_timeout_minutes: int = 15

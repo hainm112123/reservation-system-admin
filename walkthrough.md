@@ -65,10 +65,10 @@ cd admin/backend
 # Activate virtual environment
 .\.venv\Scripts\Activate.ps1
 # Run FastAPI server
-python -m uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8001
 ```
-- Admin backend endpoint will run at: `http://localhost:8000`
-- Swagger interactive documentation: `http://localhost:8000/docs`
+- Admin backend endpoint will run at: `http://localhost:8001`
+- Swagger interactive documentation: `http://localhost:8001/docs`
 
 ### 2. Launch the Frontend Dev Server
 Open another terminal in `project/admin/frontend`:
@@ -77,7 +77,7 @@ cd admin/frontend
 # Run Dev Server
 npm run dev
 ```
-- Vite will launch the premium Admin Dashboard portal at: `http://localhost:5173` (or `http://localhost:5174` if port is occupied).
+- Vite will launch the premium Admin Dashboard portal at: `http://localhost:5174`.
 - Sign in with credentials:
   - **Username**: `admin`
   - **Password**: `admin123`
