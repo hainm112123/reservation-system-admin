@@ -6,9 +6,10 @@ DROP TABLE IF EXISTS public.booking_details CASCADE;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS status character varying(50) DEFAULT 'ACTIVE';
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS banner_url text;
 
--- Add registration_start & registration_end to event_schedules to match schema.png
+-- Add registration_start & registration_end & seat_layout to event_schedules to match schema.png
 ALTER TABLE public.event_schedules ADD COLUMN IF NOT EXISTS registration_start timestamp without time zone;
 ALTER TABLE public.event_schedules ADD COLUMN IF NOT EXISTS registration_end timestamp without time zone;
+ALTER TABLE public.event_schedules ADD COLUMN IF NOT EXISTS seat_layout text;
 
 -- Create e_tickets exactly matching schema.png + seat extensions (row_label & col_number)
 CREATE TABLE public.e_tickets (
@@ -17,7 +18,7 @@ CREATE TABLE public.e_tickets (
     event_day_id integer NOT NULL,
     booking_id integer,
     ticket_code character varying,
-    ticket_status character varying DEFAULT 'Available' NOT NULL, -- 'Available', 'Holding', 'Valid', 'Used', 'Canceled'
+    ticket_status character varying DEFAULT 'Available' NOT NULL, -- 'Available', 'Holding', 'Valid', 'Used', 'Canceled', 'Reserved'
     row_label character varying,
     col_number integer,
     CONSTRAINT e_tickets_pkey PRIMARY KEY (ticket_id),
@@ -25,3 +26,4 @@ CREATE TABLE public.e_tickets (
     CONSTRAINT e_tickets_event_day_id_fkey FOREIGN KEY (event_day_id) REFERENCES public.event_days(event_day_id) ON DELETE CASCADE DEFERRABLE,
     CONSTRAINT e_tickets_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(booking_id) ON DELETE SET NULL DEFERRABLE
 );
+

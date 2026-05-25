@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -11,6 +11,7 @@ class EventSchedule(Base):
     venue_id = Column(Integer, ForeignKey("venues.venue_id"), nullable=False, index=True)
     registration_start = Column(DateTime, nullable=True)
     registration_end = Column(DateTime, nullable=True)
+    seat_layout = Column(Text, nullable=True)
 
     event = relationship("Event", back_populates="schedules")
     venue = relationship("Venue", back_populates="schedules")
