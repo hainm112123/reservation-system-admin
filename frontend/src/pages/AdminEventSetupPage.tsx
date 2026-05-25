@@ -120,8 +120,15 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
       updatedSeats = updatedSeats.filter((s) => !(s.row_label === row && s.col_number === col));
     } else {
       if (existing) {
-        // Edit seat type
-        existing.seat_type = selectedTool;
+        if (existing.seat_type === selectedTool) {
+          updatedSeats = updatedSeats.filter((s) => !(s.row_label === row && s.col_number === col));
+        } else {
+          updatedSeats = updatedSeats.map((s) =>
+            s.row_label === row && s.col_number === col
+              ? { ...s, seat_type: selectedTool }
+              : s
+          );
+        }
       } else {
         // Add new seat design
         updatedSeats.push({
