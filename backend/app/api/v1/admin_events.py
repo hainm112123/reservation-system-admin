@@ -23,36 +23,10 @@ def list_events(db: Session = Depends(get_db)):
     return crud_event.get_events(db)
 
 
-@router.get("/{event_id}", response_model=EventRead)
-def get_event(event_id: int, db: Session = Depends(get_db)):
-    event = crud_event.get_event(db, event_id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return event
-
-
 @router.post("", response_model=EventRead)
 def add_event(event: EventCreate, db: Session = Depends(get_db)):
     return crud_event.create_event(db, event)
 
-
-@router.put("/{event_id}", response_model=EventRead)
-def edit_event(event_id: int, event_in: EventUpdate, db: Session = Depends(get_db)):
-    event = crud_event.get_event(db, event_id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return crud_event.update_event(db, event, event_in)
-
-
-@router.post("/{event_id}/cancel")
-def cancel_event_endpoint(event_id: int, reason: str = "Event cancelled by company", db: Session = Depends(get_db)):
-    success = service_cancel(db, event_id, reason)
-    if not success:
-        raise HTTPException(status_code=400, detail="Could not cancel event")
-    return {"message": "Event cancelled. Refunds triggered successfully."}
-
-
-# -- Schedules CRUD --
 
 @router.get("/schedules", response_model=List[EventScheduleRead])
 def list_schedules(event_id: Optional[int] = None, db: Session = Depends(get_db)):
@@ -150,3 +124,27 @@ def delete_ticket_config_endpoint(config_id: int, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Ticket config not found")
     crud_ticket_config.delete_ticket_config(db, config)
     return {"message": "Ticket config deleted successfully."}
+
+
+@router.get("/{event_id}", response_model=EventRead)
+def get_event(event_id: int, db: Session = Depends(get_db)):
+    event = crud_event.get_event(db, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
+
+@router.put("/{event_id}", response_model=EventRead)
+def edit_event(event_id: int, event_in: EventUpdate, db: Session = Depends(get_db)):
+    event = crud_event.get_event(db, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return crud_event.update_event(db, event, event_in)
+
+
+@router.post("/{event_id}/cancel")
+def cancel_event_endpoint(event_id: int, reason: str = "Event cancelled by company", db: Session = Depends(get_db)):
+    success = service_cancel(db, event_id, reason)
+    if not success:
+        raise HTTPException(status_code=400, detail="Could not cancel event")
+    return {"message": "Event cancelled. Refunds triggered successfully."}

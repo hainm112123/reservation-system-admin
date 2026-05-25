@@ -128,13 +128,13 @@ export const AdminEventsPage: React.FC<{ setSelectedScheduleId: (id: number | nu
         registration_start: regStart ? new Date(regStart).toISOString() : undefined,
         registration_end: regEnd ? new Date(regEnd).toISOString() : undefined
       }, token);
-      setMessage("Schedule allocated successfully!");
-      setRegStart("");
-      setRegEnd("");
-      
-      // Reload schedules
+
+      // Reload schedules before showing success so the UI reflects the new state.
       const scheds = await getSchedules(selectedEventId, token);
       setSchedules(scheds);
+      setRegStart("");
+      setRegEnd("");
+      setMessage("Schedule allocated successfully!");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Schedule allocation failed");
     }
