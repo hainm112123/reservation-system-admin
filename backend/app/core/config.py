@@ -4,7 +4,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql+pg8000://postgres:password@localhost:5432/event_booking"
+    database_url: str = "postgresql+pg8000://postgres:postgres@localhost:5000/event_booking"
 
     # JWT Auth (Admin)
     secret_key: str = "change-me-in-production-super-secret-key"
