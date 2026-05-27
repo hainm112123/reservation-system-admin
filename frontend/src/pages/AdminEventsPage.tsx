@@ -32,6 +32,11 @@ export const AdminEventsPage: React.FC<{ setSelectedScheduleId: (id: number | nu
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Cancel Event custom modal states
+  const [cancelEventId, setCancelEventId] = useState<number | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>("");
+  const [showCancelModal, setShowCancelModal] = useState<boolean>(false);
+
   const loadEventsAndVenues = async () => {
     if (!token) return;
     try {
@@ -102,16 +107,27 @@ export const AdminEventsPage: React.FC<{ setSelectedScheduleId: (id: number | nu
     }
   };
 
-  const handleCancelEvent = async (eventId: number) => {
-    const reason = window.prompt("Please provide a cancellation reason (this triggers automatic refunds):");
-    if (reason === null) return; // cancelled prompt
-    if (!token) return;
+  const handleCancelEvent = (eventId: number) => {
+    setCancelEventId(eventId);
+    setCancelReason("");
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancelEvent = async () => {
+    if (!token || cancelEventId === null) return;
+    const reason = cancelReason.trim();
+    setShowCancelModal(false);
+    setError(null);
+    setMessage(null);
     try {
-      await cancelEvent(eventId, reason || "Event cancelled by company", token);
+      await cancelEvent(cancelEventId, reason || "Event cancelled by company", token);
       setMessage("Event cancelled successfully. All booked seats refunded!");
       void loadEventsAndVenues();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Cancellation failed");
+    } finally {
+      setCancelEventId(null);
+      setCancelReason("");
     }
   };
 
@@ -510,6 +526,76 @@ export const AdminEventsPage: React.FC<{ setSelectedScheduleId: (id: number | nu
           )}
         </div>
       </div>
+
+      {showCancelModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 1000,
+        }}>
+          <div className="panel" style={{
+            width: "100%",
+            maxWidth: "450px",
+            padding: "2rem",
+            borderRadius: "16px",
+            border: "1px solid var(--border-color)",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5), var(--border-glow)",
+            backgroundColor: "var(--bg-card)",
+          }}>
+            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: "var(--text-primary)" }}>Cancel Event</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginBottom: "1.25rem", lineHeight: "1.5" }}>
+              Please provide a cancellation reason. This triggers automatic refunds for all booked seats.
+            </p>
+            <div className="form-group" style={{ marginBottom: "1.5rem" }}>
+              <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", display: "block", marginBottom: "0.5rem" }}>Cancellation Reason</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Event cancelled by company"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                style={{ width: "100%" }}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
+              <button 
+                className="btn" 
+                style={{ 
+                  backgroundColor: "rgba(255, 255, 255, 0.05)", 
+                  color: "var(--text-primary)", 
+                  border: "1px solid var(--border-color)",
+                  padding: "0.5rem 1.2rem",
+                  borderRadius: "8px",
+                  cursor: "pointer"
+                }} 
+                onClick={() => { setShowCancelModal(false); setCancelEventId(null); setCancelReason(""); }}
+              >
+                Go Back
+              </button>
+              <button 
+                className="btn btn-danger" 
+                style={{ 
+                  padding: "0.5rem 1.2rem",
+                  borderRadius: "8px",
+                  cursor: "pointer"
+                }}
+                onClick={() => void handleConfirmCancelEvent()}
+              >
+                Cancel Event
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

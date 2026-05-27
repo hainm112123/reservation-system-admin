@@ -9,6 +9,9 @@ export const AdminRefundsPage: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+
   const loadRefunds = async () => {
     if (!token) return;
     try {
@@ -23,16 +26,24 @@ export const AdminRefundsPage: React.FC = () => {
     void loadRefunds();
   }, [token]);
 
-  const handleManualRefund = async (bookingId: number) => {
-    if (!token || !window.confirm("Resolve this refund manually?")) return;
+  const handleManualRefund = (bookingId: number) => {
+    setSelectedBookingId(bookingId);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmRefund = async () => {
+    if (!token || selectedBookingId === null) return;
+    setShowConfirmModal(false);
     setError(null);
     setMessage(null);
     try {
-      const res = await triggerManualRefund(bookingId, token);
+      const res = await triggerManualRefund(selectedBookingId, token);
       setMessage(res.message);
       void loadRefunds();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Manual refund failed");
+    } finally {
+      setSelectedBookingId(null);
     }
   };
 
@@ -93,6 +104,64 @@ export const AdminRefundsPage: React.FC = () => {
           </div>
         )}
       </section>
+
+      {showConfirmModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 1000,
+        }}>
+          <div className="panel" style={{
+            width: "100%",
+            maxWidth: "450px",
+            padding: "2rem",
+            borderRadius: "16px",
+            border: "1px solid var(--border-color)",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5), var(--border-glow)",
+            backgroundColor: "var(--bg-card)",
+          }}>
+            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: "var(--text-primary)" }}>Confirm Manual Refund</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginBottom: "1.5rem", lineHeight: "1.5" }}>
+              Are you sure you want to resolve booking <strong style={{ color: "var(--primary)" }}>#{selectedBookingId}</strong> manually? This will update its status to Refunded.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
+              <button 
+                className="btn" 
+                style={{ 
+                  backgroundColor: "rgba(255, 255, 255, 0.05)", 
+                  color: "var(--text-primary)", 
+                  border: "1px solid var(--border-color)",
+                  padding: "0.5rem 1.2rem",
+                  borderRadius: "8px",
+                  cursor: "pointer"
+                }} 
+                onClick={() => { setShowConfirmModal(false); setSelectedBookingId(null); }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                style={{ 
+                  padding: "0.5rem 1.2rem",
+                  borderRadius: "8px",
+                  cursor: "pointer"
+                }}
+                onClick={() => void handleConfirmRefund()}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
