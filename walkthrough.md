@@ -24,7 +24,10 @@ We have successfully developed the separate **Admin Project** under `project/adm
     - `validate_backup_count`: Enforces $\geq 2$ backup artists assigned for each active date.
     - `save_seat_layout_and_pregenerate`: Persists designed visual coordinates and pre-generates physical seats (`row_label`, `col_number`) in the `e_tickets` database for **each scheduled date**, making `normal` and `special` seats `'Available'` and `vip` seats `'Reserved'` (preventing standard customer booking while respecting overall capacity).
   - **API Routers**: Secured REST API endpoints for admin login, venues, events, day allocations, and bookings monitoring.
-
+  - **Database Concurrency Control**:
+    - Demonstrated and documented **Pessimistic Locking** (`Row-level Locking`) for the booking transaction system.
+    - Utilized SQLAlchemy's `.with_for_update()` to translate into `SELECT ... FOR UPDATE` at the database level.
+    - This ensures absolute consistency and eliminates Race Conditions (preventing double-booking of a single physical seat) during high-traffic ticket sales.
 ### 3. High-Fidelity React + TypeScript Frontend (`project/admin/frontend`)
 - Initialized a modern Vite + React + TS skeleton and styled it using a premium, dark-theme Glassmorphic Vanilla CSS system.
 - Designed key views:
