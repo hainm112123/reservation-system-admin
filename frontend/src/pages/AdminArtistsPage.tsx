@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { getArtists, createArtist, deleteArtist, getEvents, getSchedules, getEventDays, getEventArtists, assignArtist, unassignArtist, validateBackups } from "../api/admin";
-import type { Artist, Event, EventSchedule, EventDay, EventArtist } from "../api/admin";
+import { getArtists, createArtist, deleteArtist, getEvents, getSchedules, getEventDays, getEventArtists, assignArtist, unassignArtist, validateBackups, getVenues } from "../api/admin";
+import type { Artist, Event, EventSchedule, EventDay, EventArtist, Venue } from "../api/admin";
 import { useAuth } from "../context/AuthContext";
 
 export const AdminArtistsPage: React.FC = () => {
@@ -16,6 +16,8 @@ export const AdminArtistsPage: React.FC = () => {
   
   const [schedules, setSchedules] = useState<EventSchedule[]>([]);
   const [selectedSchedId, setSelectedSchedId] = useState<number>(0);
+  
+  const [venues, setVenues] = useState<Venue[]>([]);
   
   const [days, setDays] = useState<EventDay[]>([]);
   const [selectedDayId, setSelectedDayId] = useState<number>(0);
@@ -35,9 +37,10 @@ export const AdminArtistsPage: React.FC = () => {
   const loadArtistsAndEvents = async () => {
     if (!token) return;
     try {
-      const [art, evts] = await Promise.all([getArtists(token), getEvents(token)]);
+      const [art, evts, vns] = await Promise.all([getArtists(token), getEvents(token), getVenues(token)]);
       setArtists(art);
       setEvents(evts);
+      setVenues(vns);
       if (art.length > 0) setTargetArtistId(art[0].artist_id);
       if (evts.length > 0) setSelectedEvtId(evts[0].event_id);
     } catch (err) {
@@ -262,11 +265,14 @@ export const AdminArtistsPage: React.FC = () => {
                 <div className="form-group" style={{ margin: 0 }}>
                   <label>2. Select Venue Schedule</label>
                   <select className="form-control" value={selectedSchedId} onChange={(e) => setSelectedSchedId(Number(e.target.value))}>
-                    {schedules.map((s) => (
-                      <option key={s.schedule_id} value={s.schedule_id}>
-                        Schedule #{s.schedule_id} (Venue #{s.venue_id})
-                      </option>
-                    ))}
+                    {schedules.map((s) => {
+                      const venueName = venues.find((v) => v.venue_id === s.venue_id)?.venue_name || `Venue #${s.venue_id}`;
+                      return (
+                        <option key={s.schedule_id} value={s.schedule_id}>
+                          {venueName} (Schedule #{s.schedule_id})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               )}

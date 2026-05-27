@@ -53,15 +53,21 @@ def trigger_manual_refund(booking_id: int, db: Session = Depends(get_db)):
 @router.get("/refunds/all", response_model=List[RefundRead])
 def list_refunds(db: Session = Depends(get_db)):
     """Summary of all refunding and refunded bookings since our database schema aggregates them in bookings."""
-    bookings = db.query(Booking).filter(Booking.payment_status.in_(["Refunding", "Refunded"])).all()
+    bookings = db.query(Booking).filter(Booking.payment_status.in_(["Refunding", "Refunded", "RefundFailed"])).all()
     refunds = []
     for b in bookings:
+        status_val = "PENDING"
+        if b.payment_status == "Refunded":
+            status_val = "SUCCESS"
+        elif b.payment_status == "RefundFailed":
+            status_val = "FAILED"
+            
         refunds.append({
             "refund_id": b.booking_id, # using booking_id as a dummy refund_id
             "booking_id": b.booking_id,
             "gateway_refund_id": f"REFUND-GATEWAY-{b.booking_id}",
             "amount": b.total_amount,
-            "status": "SUCCESS" if b.payment_status == "Refunded" else "PENDING",
+            "status": status_val,
             "reason": "Event Cancelled",
             "is_manual": False,
             "created_at": b.created_at,

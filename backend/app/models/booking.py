@@ -30,6 +30,7 @@ class Booking(Base):
             "Failed": "PAYMENT_FAILED",
             "Refunding": "REFUNDING",
             "Refunded": "REFUNDED",
+            "RefundFailed": "REFUND_FAILED",
         }
         return status_map.get(self.payment_status, self.payment_status or "PENDING_PAYMENT")
 
@@ -41,6 +42,7 @@ class Booking(Base):
             "PAYMENT_FAILED": "Failed",
             "REFUNDING": "Refunding",
             "REFUNDED": "Refunded",
+            "REFUND_FAILED": "RefundFailed",
         }
         self.payment_status = status_map.get(value, value)
 

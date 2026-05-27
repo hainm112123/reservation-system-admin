@@ -73,8 +73,8 @@ export const AdminRefundsPage: React.FC = () => {
                     <td style={{ fontWeight: 700, color: "var(--danger)" }}>${Number(r.amount).toLocaleString()}</td>
                     <td>{r.reason}</td>
                     <td>
-                      <span className={`badge ${r.status === "SUCCESS" ? "badge-active" : "badge-warning"}`}>
-                        {r.status === "SUCCESS" ? "Refunded" : "Refunding"}
+                      <span className={`badge ${r.status === "SUCCESS" ? "badge-active" : r.status === "FAILED" ? "badge-cancelled" : "badge-warning"}`}>
+                        {r.status === "SUCCESS" ? "Refunded" : r.status === "FAILED" ? "Failed" : "Refunding"}
                       </span>
                     </td>
                     <td>
