@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from app.core.config import settings
 
 # Import Routers
@@ -10,10 +11,24 @@ from app.api.v1.admin_artists import router as admin_artists_router
 from app.api.v1.admin_bookings import router as admin_bookings_router
 from app.api.v1.admin_seats import router as admin_seats_router
 
+# Import worker
+from app.worker.scheduler import start_scheduler, stop_scheduler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start background scheduler
+    start_scheduler()
+    yield
+    # Shutdown: Stop scheduler
+    stop_scheduler()
+
+
 app = FastAPI(
     title=settings.app_name,
     description="Backend API for Event Booking Admin Platform",
     version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS configurations
