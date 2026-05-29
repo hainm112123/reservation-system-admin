@@ -21,11 +21,13 @@ class ETicket(Base):
 
     @property
     def qr_code_url(self):
+        if self.ticket_code:
+            return f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={self.ticket_code}"
         return None
 
     @property
     def issued_at(self):
-        return None
+        return self.booking.created_at if self.booking else None
 
     @property
     def used_at(self):

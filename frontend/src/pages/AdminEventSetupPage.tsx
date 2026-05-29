@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { getSchedule, getVenues, getTicketConfigs, createTicketConfig, deleteTicketConfig, getSeatLayout, saveSeatLayout } from "../api/admin";
-import type { Venue, TicketConfig, EventSchedule } from "../api/admin";
+import { getSchedule, getVenues, getTicketConfigs, createTicketConfig, deleteTicketConfig, getSeatLayout, saveSeatLayout, getEvent } from "../api/admin";
+import type { Venue, TicketConfig, EventSchedule, Event } from "../api/admin";
 import { useAuth } from "../context/AuthContext";
 
 interface SetupPageProps {
@@ -17,6 +17,7 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
   const { token } = useAuth();
   const [schedule, setSchedule] = useState<EventSchedule | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
+  const [event, setEvent] = useState<Event | null>(null);
   
   // Ticket configs
   const [configs, setConfigs] = useState<TicketConfig[]>([]);
@@ -27,6 +28,7 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
   // Visual Seat Grid Layout
   const [seats, setSeats] = useState<SeatDesign[]>([]);
   const [selectedTool, setSelectedTool] = useState<string>("normal"); // 'empty', 'normal', 'special', 'vip'
+  const [isMouseDown, setIsMouseDown] = useState(false);
 
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,16 +44,18 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
       const sched = await getSchedule(scheduleId, token);
       setSchedule(sched);
       
-      const [vens, tconfigs, seatMap] = await Promise.all([
+      const [vens, tconfigs, seatMap, eventData] = await Promise.all([
         getVenues(token),
         getTicketConfigs(scheduleId, token),
-        getSeatLayout(scheduleId, token)
+        getSeatLayout(scheduleId, token),
+        getEvent(sched.event_id, token)
       ]);
       
       const v = vens.find((vn) => vn.venue_id === sched.venue_id);
       if (v) setVenue(v);
       setConfigs(tconfigs);
       setSeats(seatMap.seats || []);
+      setEvent(eventData);
     } catch (err) {
       console.error(err);
       setError("Failed to load ticketing configurations.");
@@ -64,9 +68,21 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
     void loadData();
   }, [scheduleId, token]);
 
+  // Global mouseup listener to cancel drag-paint selection
+  useEffect(() => {
+    const handleMouseUpGlobal = () => {
+      setIsMouseDown(false);
+    };
+    window.addEventListener("mouseup", handleMouseUpGlobal);
+    return () => {
+      window.removeEventListener("mouseup", handleMouseUpGlobal);
+    };
+  }, []);
+
   const handleAddConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token || !schedule) return;
+    if (event?.status === "CANCELLED") return;
     setError(null);
     setMessage(null);
 
@@ -95,6 +111,7 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
   };
 
   const handleDeleteConfig = async (configId: number) => {
+    if (event?.status === "CANCELLED") return;
     if (!token || !window.confirm("Remove this ticket config?")) return;
     try {
       await deleteTicketConfig(configId, token);
@@ -112,6 +129,7 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
   };
 
   const handleCellClick = (row: string, col: number) => {
+    if (event?.status === "CANCELLED") return;
     const existing = getSeatAt(row, col);
     let updatedSeats = [...seats];
 
@@ -141,8 +159,39 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
     setSeats(updatedSeats);
   };
 
+  // Helper for drag painting
+  const applyToolToSeat = (row: string, col: number, tool: string) => {
+    if (event?.status === "CANCELLED") return;
+    const existing = getSeatAt(row, col);
+    let updatedSeats = [...seats];
+
+    if (tool === "empty") {
+      updatedSeats = updatedSeats.filter((s) => !(s.row_label === row && s.col_number === col));
+    } else {
+      if (existing) {
+        if (existing.seat_type !== tool) {
+          updatedSeats = updatedSeats.map((s) =>
+            s.row_label === row && s.col_number === col
+              ? { ...s, seat_type: tool }
+              : s
+          );
+        } else {
+          return; // Already has the same tool type, avoid redundancy
+        }
+      } else {
+        updatedSeats.push({
+          row_label: row,
+          col_number: col,
+          seat_type: tool
+        });
+      }
+    }
+    setSeats(updatedSeats);
+  };
+
   const handleSaveLayout = async () => {
     if (!token || !schedule) return;
+    if (event?.status === "CANCELLED") return;
     setError(null);
     setMessage(null);
 
@@ -172,12 +221,14 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
   };
 
   const clearLayout = () => {
+    if (event?.status === "CANCELLED") return;
     if (window.confirm("Are you sure you want to clear all designed seats?")) {
       setSeats([]);
     }
   };
 
   const fillLayout = () => {
+    if (event?.status === "CANCELLED") return;
     if (!window.confirm("Fill the entire grid layout with Normal seats?")) return;
     const filled: SeatDesign[] = [];
     rows.forEach((r) => {
@@ -200,6 +251,7 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
   const designedCount = seats.length;
   const capacityPercent = Math.min((designedCount / (capacityVal || 1)) * 100, 100);
   const totalConfiguredQty = configs.reduce((sum, c) => sum + c.max_quantity, 0);
+  const isEventCancelled = event?.status === "CANCELLED";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
@@ -210,13 +262,19 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
         </p>
       </div>
 
+      {isEventCancelled && (
+        <div className="alert-box alert-warning" style={{ borderLeft: "4px solid var(--warning)", padding: "1rem" }}>
+          <strong>⚠️ EVENT CANCELLED:</strong> This event has been marked as cancelled. All configurations and seat grid details are read-only and cannot be updated.
+        </div>
+      )}
+
       {message && <div className="alert-box alert-success">{message}</div>}
       {error && <div className="alert-box alert-warning">{error}</div>}
 
       <div className="grid-cols-2" style={{ gridTemplateColumns: "1fr 2fr" }}>
         {/* Left Column: Ticket Configs list & pricing form */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          <section className="panel">
+          <section className="panel" style={{ opacity: isEventCancelled ? 0.65 : 1 }}>
             <h2>Add Ticket Configuration</h2>
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "0.25rem" }}>
               Configure ticket prices for normal, special, and VIP guest seats.
@@ -224,7 +282,12 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
             <form onSubmit={handleAddConfig} style={{ marginTop: "1rem" }}>
               <div className="form-group">
                 <label>Ticket Type</label>
-                <select className="form-control" value={ticketType} onChange={(e) => setTicketType(e.target.value)}>
+                <select 
+                  className="form-control" 
+                  value={ticketType} 
+                  onChange={(e) => setTicketType(e.target.value)}
+                  disabled={isEventCancelled}
+                >
                   <option value="normal">Normal (Standard seats)</option>
                   <option value="special">Special (Premium/Reserved)</option>
                   <option value="vip">VIP (External invites, not bookable)</option>
@@ -239,6 +302,7 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
                   className="form-control"
                   value={price}
                   onChange={(e) => setPrice(Number(e.target.value))}
+                  disabled={isEventCancelled}
                 />
               </div>
 
@@ -250,10 +314,16 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
                   className="form-control"
                   value={maxQty}
                   onChange={(e) => setMaxQty(Number(e.target.value))}
+                  disabled={isEventCancelled}
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: "0.5rem" }}>
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                style={{ width: "100%", marginTop: "0.5rem" }}
+                disabled={isEventCancelled}
+              >
                 Add Configuration
               </button>
             </form>
@@ -278,7 +348,12 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
                       <td style={{ color: "var(--success)", fontWeight: 700 }}>${c.price}</td>
                       <td>{c.max_quantity}</td>
                       <td>
-                        <button className="btn btn-danger" style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }} onClick={() => void handleDeleteConfig(c.config_id)}>
+                        <button 
+                          className="btn btn-danger" 
+                          style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }} 
+                          onClick={() => void handleDeleteConfig(c.config_id)}
+                          disabled={isEventCancelled}
+                        >
                           Delete
                         </button>
                       </td>
@@ -303,10 +378,20 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
               </p>
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }} onClick={fillLayout}>
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }} 
+                onClick={fillLayout}
+                disabled={isEventCancelled}
+              >
                 Fill All
               </button>
-              <button className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }} onClick={clearLayout}>
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }} 
+                onClick={clearLayout}
+                disabled={isEventCancelled}
+              >
                 Clear All
               </button>
             </div>
@@ -329,27 +414,43 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
           </div>
 
           {/* Tool Selection Buttons */}
-          <div className="tool-selection" style={{ marginTop: "1rem" }}>
+          <div className="tool-selection" style={{ marginTop: "1rem", opacity: isEventCancelled ? 0.5 : 1 }}>
             <span style={{ fontSize: "0.9rem", fontWeight: 700, display: "flex", alignItems: "center", color: "var(--text-secondary)", marginRight: "0.5rem" }}>
               Brush Tool:
             </span>
-            <button className={`tool-btn tool-normal ${selectedTool === "normal" ? "active-tool" : ""}`} onClick={() => setSelectedTool("normal")}>
+            <button 
+              className={`tool-btn tool-normal ${selectedTool === "normal" ? "active-tool" : ""}`} 
+              onClick={() => setSelectedTool("normal")}
+              disabled={isEventCancelled}
+            >
               <span className="legend-box" style={{ background: "var(--primary)", width: "12px", height: "12px" }} /> Normal
             </button>
-            <button className={`tool-btn tool-special ${selectedTool === "special" ? "active-tool" : ""}`} onClick={() => setSelectedTool("special")}>
+            <button 
+              className={`tool-btn tool-special ${selectedTool === "special" ? "active-tool" : ""}`} 
+              onClick={() => setSelectedTool("special")}
+              disabled={isEventCancelled}
+            >
               <span className="legend-box" style={{ background: "var(--secondary)", width: "12px", height: "12px" }} /> Special
             </button>
-            <button className={`tool-btn tool-vip ${selectedTool === "vip" ? "active-tool" : ""}`} onClick={() => setSelectedTool("vip")}>
+            <button 
+              className={`tool-btn tool-vip ${selectedTool === "vip" ? "active-tool" : ""}`} 
+              onClick={() => setSelectedTool("vip")}
+              disabled={isEventCancelled}
+            >
               <span className="legend-box" style={{ background: "var(--warning)", width: "12px", height: "12px" }} /> VIP (Invite Only)
             </button>
-            <button className={`tool-btn tool-empty ${selectedTool === "empty" ? "active-tool" : ""}`} onClick={() => setSelectedTool("empty")}>
+            <button 
+              className={`tool-btn tool-empty ${selectedTool === "empty" ? "active-tool" : ""}`} 
+              onClick={() => setSelectedTool("empty")}
+              disabled={isEventCancelled}
+            >
               <span className="legend-box" style={{ border: "1.5px dashed var(--text-muted)", background: "none", width: "12px", height: "12px" }} /> Eraser
             </button>
           </div>
 
           {/* Visual Seat Map Board Grid */}
-          <div className="seat-map-grid-wrapper">
-            <div className="seat-map-board">
+          <div className="seat-map-grid-wrapper" style={{ cursor: isEventCancelled ? "not-allowed" : "default" }}>
+            <div className="seat-map-board" style={{ userSelect: "none" }}>
               {/* Header column indicators */}
               <div />
               {cols.map((c) => (
@@ -375,8 +476,20 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
                     return (
                       <div
                         key={`seat-${r}-${c}`}
-                        className={`seat-node ${seatClass}`}
-                        onClick={() => handleCellClick(r, c)}
+                        className={`seat-node ${seatClass} ${isEventCancelled ? "read-only" : ""}`}
+                        onMouseDown={(e) => {
+                          if (isEventCancelled) return;
+                          e.preventDefault();
+                          setIsMouseDown(true);
+                          handleCellClick(r, c);
+                        }}
+                        onMouseEnter={() => {
+                          if (isEventCancelled) return;
+                          if (isMouseDown) {
+                            applyToolToSeat(r, c, selectedTool);
+                          }
+                        }}
+                        style={{ cursor: isEventCancelled ? "not-allowed" : "pointer" }}
                       >
                         <span className="seat-label-row-col">{r}{c}</span>
                       </div>
@@ -388,7 +501,12 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
           </div>
 
           <div style={{ marginTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
-            <button className="btn btn-primary" style={{ padding: "0.85rem 2rem", fontSize: "1rem" }} onClick={handleSaveLayout}>
+            <button 
+              className="btn btn-primary" 
+              style={{ padding: "0.85rem 2rem", fontSize: "1rem" }} 
+              onClick={handleSaveLayout}
+              disabled={isEventCancelled}
+            >
               Save Seat Layout & Pregenerate Tickets 🚀
             </button>
           </div>

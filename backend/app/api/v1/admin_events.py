@@ -76,6 +76,11 @@ def list_event_days(schedule_id: Optional[int] = None, db: Session = Depends(get
 
 @router.post("/days", response_model=EventDayRead)
 def add_event_day(day: EventDayCreate, db: Session = Depends(get_db)):
+    sched = crud_schedule.get_schedule(db, day.schedule_id)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    if sched.event and sched.event.status == "CANCELLED":
+        raise HTTPException(status_code=400, detail="Cannot add event days to a cancelled event.")
     return crud_day.create_event_day(db, day)
 
 
@@ -84,6 +89,8 @@ def edit_event_day(day_id: int, day_in: EventDayUpdate, db: Session = Depends(ge
     day = crud_day.get_event_day(db, day_id)
     if not day:
         raise HTTPException(status_code=404, detail="Event day not found")
+    if day.schedule and day.schedule.event and day.schedule.event.status == "CANCELLED":
+        raise HTTPException(status_code=400, detail="Cannot edit event days of a cancelled event.")
     return crud_day.update_event_day(db, day, day_in)
 
 
@@ -92,6 +99,8 @@ def delete_event_day_endpoint(day_id: int, db: Session = Depends(get_db)):
     day = crud_day.get_event_day(db, day_id)
     if not day:
         raise HTTPException(status_code=404, detail="Event day not found")
+    if day.schedule and day.schedule.event and day.schedule.event.status == "CANCELLED":
+        raise HTTPException(status_code=400, detail="Cannot delete event days of a cancelled event.")
     crud_day.delete_event_day(db, day)
     return {"message": "Event day deleted successfully."}
 
@@ -108,6 +117,8 @@ def add_ticket_config(config: TicketConfigCreate, db: Session = Depends(get_db))
     sched = crud_schedule.get_schedule(db, config.schedule_id)
     if not sched:
         raise HTTPException(status_code=404, detail="Schedule not found")
+    if sched.event and sched.event.status == "CANCELLED":
+        raise HTTPException(status_code=400, detail="Cannot add ticket configurations to a cancelled event.")
         
     # Validate capacity limits
     ok, err = validate_schedule_capacity(db, config.schedule_id, sched.venue_id, config.max_quantity)
@@ -122,6 +133,8 @@ def delete_ticket_config_endpoint(config_id: int, db: Session = Depends(get_db))
     config = crud_ticket_config.get_ticket_config(db, config_id)
     if not config:
         raise HTTPException(status_code=404, detail="Ticket config not found")
+    if config.schedule and config.schedule.event and config.schedule.event.status == "CANCELLED":
+        raise HTTPException(status_code=400, detail="Cannot delete ticket configurations of a cancelled event.")
     crud_ticket_config.delete_ticket_config(db, config)
     return {"message": "Ticket config deleted successfully."}
 

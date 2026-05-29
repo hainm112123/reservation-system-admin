@@ -15,6 +15,12 @@ def save_seat_layout_and_pregenerate(db: Session, schedule_id: int, seats_layout
     if not schedule:
         raise HTTPException(status_code=404, detail="Event schedule not found")
 
+    if schedule.event and schedule.event.status == "CANCELLED":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot modify seat layout or tickets for a cancelled event."
+        )
+
     venue = db.query(Venue).filter(Venue.venue_id == schedule.venue_id).first()
     if not venue:
         raise HTTPException(status_code=404, detail="Venue not found")
