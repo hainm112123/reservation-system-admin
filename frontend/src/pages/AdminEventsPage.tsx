@@ -819,7 +819,7 @@ export const AdminEventsPage: React.FC<{ setSelectedScheduleId: (id: number | nu
                 {/* Backup Artists Selection */}
                 <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                   <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", display: "block" }}>
-                    Backup Artists (Select exactly 2)
+                    Backup Artists (Select at least 2)
                   </label>
 
                   {/* Selected Backups Tags */}

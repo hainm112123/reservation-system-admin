@@ -295,7 +295,7 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
               </div>
 
               <div className="form-group">
-                <label>Ticket Price ($)</label>
+                <label>Ticket Price (₫)</label>
                 <input
                   type="number"
                   min={0}
@@ -345,7 +345,7 @@ export const AdminEventSetupPage: React.FC<SetupPageProps> = ({ scheduleId }) =>
                   {configs.map((c) => (
                     <tr key={c.config_id}>
                       <td style={{ fontWeight: 600, textTransform: "capitalize" }}>{c.ticket_type}</td>
-                      <td style={{ color: "var(--success)", fontWeight: 700 }}>${c.price}</td>
+                      <td style={{ color: "var(--success)", fontWeight: 700 }}>{c.price}₫</td>
                       <td>{c.max_quantity}</td>
                       <td>
                         <button 
